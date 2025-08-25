@@ -41,6 +41,11 @@ Changelog (archive at the very bottom)
 015|25 UPD CycloidZahn FIX Arc UPD bezier
 070|25 UPD KnurlTri
 100|25 REN variable 2D ↦ use2D for compatibility
+101|25 printBed↦256 UPD Torus diverses UPD Kugelmantel
+111|25 CHG PrevPos UPD FlatMesh UPD Ring
+150|25 CHG Klammer CHG PCBcase FIX Torus
+200|25 FIX Kreis FIX Roof
+250|25 FIX Superellipse
 
 */
 
@@ -90,7 +95,7 @@ layer=0.08;// one step = 0.04 (8mm/200steps)
 lineProfile=PI*(layer/2)^2+ (line-layer)*layer;
 
 /// Print Bed size
-printBed=is_num(bed)?bed*[1,1]:is_list(bed)?bed:[220,220];
+printBed=is_num(bed)?bed*[1,1]:is_list(bed)?bed:[256,256];
 /// Printposition;
 pPos=[0,0,0];
 printPos=bed?concat(printBed,0)/2+v3(pPos):v3(pPos);
@@ -132,7 +137,7 @@ helpMColor="";//"#5500aa";
 
 /*[Constant]*/
 /*[Hidden]*/
-Version=25.100;//                <<< ---   VERSION  VERSION VERSION ••••••••••••••••
+Version=25.250;//                <<< ---   VERSION  VERSION VERSION ••••••••••••••••
 useVersion=undef;
 UB=true;
 PHI=1.6180339887498948;/// golden ratio 1.618033988;
@@ -150,7 +155,7 @@ needs2D=["Rand","WKreis","Welle","Rund","Rundrum", "LinEx", "RotEx","SBogen","Bo
 }//fold // end constants ΔΔ
 
 assert(useVersion?Version>=useVersion:true,str("lib version ",Version," detected, install ",useVersion," ub.scad library‼ ⇒http://v.gd/ubaer"));
-assert(version()[0]>2023,"Please install current http://openscad.org/downloads#snapshots version");
+assert(version()[0]>=2025,str(version()[0]," version found, Please install current (nightly snapshot) http://openscad.org/downloads#snapshots version") );
 
 {//fold // \∇∇ functions ∇∇/
 
@@ -2716,18 +2721,20 @@ PrevPos() object position Object for preview only
 \param z translate z in preview
 \param rot rotates in preview
 \param tP translates the print position
+\param tR rotates the print
+\param help help
 */
 
-module PrevPos(on=true,t=[0,0,0],z=0,rot=[180,0,0],tP=[0,0,0],help){
+module PrevPos(on=true,t=[0,0,0],z=0,rot=[0,0,0],tP=[0,0,0],rP=[0,0,0],help){
 rot=is_num(rot)?[0,0,rot]:rot;
 if($preview&&on||on==2)translate(v3(t)+[0,0,z])rotate(v3(rot))children();
-else translate(v3(tP))children();
+else translate(v3(tP))rotate(v3(rP))children();
 
 Echo("Render with PrevPos!",color="warning",condition=on==2);
 
 MO(!$children);
 
-HelpTxt("PrevPos",["on",on,"t",t,"z",z,"rot",rot,"tP",tP],help);
+HelpTxt("PrevPos",["on",on,"t",t,"z",z,"rot",rot,"tP",tP,"rP",rP],help);
 };
 
 
@@ -4852,7 +4859,7 @@ Kreis() creates a circle polygon
 module Kreis(r=10,dicke=0,grad=360,grad2,fn,center=true,sek=false,r2=0,rand2,rcenter=0,rot=0,t=[0,0],name,help,d,b,fs=fs,fa=fa,rand,id){
     r=is_undef(d)?r:d/2;
     d=2*r;
-    dicke=is_undef(rand)?is_undef(id)?dicke:(d-id)/2
+    dicke=is_undef(rand)?is_undef(id)?dicke:dicke?dicke:(d-id)/2
                         :rand;
     
     grad=is_undef(b)?grad:r==0?0:b/(2*PI*r)*360;
@@ -6127,7 +6134,8 @@ module Superellipse(n=4,r=10,n2,r2,n3,n31,n32,r3,r1,fn=fn,fnz,name,help){
     ];   
       
   
-    faces=[for(i=[0:len(points)-fn -3])[i+1,i,i+fn+1,i+2+fn]];
+    faces=[for(i=[0:len(points)-fn -3])if((i+1)%(fn+1))[i+1,i,i+fn+1,i+2+fn]];
+    //faces=[for(i=[0:len(points)-fn -3])[i+1,i,i+fn+1,i+2+fn]];
     //faces2=[[for(i=[0:fn-1])i],[for(i=[len(points)-fn:len(points)-1])i]];  
     
    polyhedron(points,faces,convexity=5);   
@@ -6933,19 +6941,21 @@ Torus() creates a torus with optional child();
 \param dia  outer diameter torus optional to trx
 \param id   inner diameter torus optional to trx
 \param center center z
-\param end  add Ends
+\param end  add Ends [a,b] and scales them
 \param trxEnd,gradEnd  end Torus radius and angle
 \param lap  overlap of extrusions 
 */
 
-//Torus(grad=130,end=+2,trxEnd=-3,fn=0,lap=.1,center=-1);
+//Torus(grad=130,end=-2,trxEnd=-3,fn=0,lap=.1,center=-1);
+//Torus(grad=200,end=-1) Quad($d,2);
+
 
 
 
 module Torus(trx=+6,d=4,a=360,fn,fn2=0,r,rot=0,grad=0,dia,id,center=true,end=0,gradEnd=90,trxEnd=0,endRot=0,endspiel=+0,lap=0,fs=fs,fs2=fs,name,help)
     rotate(grad?bool(center,false)<0?-grad:0:-a/2){
 
-    end=is_undef(spheres)?is_bool(end)?end?-1:0:end:spheres;//compatibility
+    end=is_undef(spheres)?is_bool(end)?end?[-1,-1]:[0,0]:is_list(end)?end:[end,end]:[1,1]*spheres;//compatibility
     d=is_undef(r)?d:r*2;
     $d=d;
     $r=d/2;
@@ -6954,7 +6964,7 @@ module Torus(trx=+6,d=4,a=360,fn,fn2=0,r,rot=0,grad=0,dia,id,center=true,end=0,g
     trx=dia?dia/2-d/2
            :id?id/2+d/2:trx;
     grad=grad?grad:a;
-    a=end==-1&&!trxEnd? grad-(asin(abs($r)/trx)*2)*sign(grad):
+    a=min(end)==-1&&!trxEnd? grad-(asin(abs($r)/trx)*2)*sign(grad):
                                  grad;
          //   end==-1&&!$children? a-(asin($r/trx)*2)*sign(a):
          //                        a;
@@ -6965,7 +6975,7 @@ module Torus(trx=+6,d=4,a=360,fn,fn2=0,r,rot=0,grad=0,dia,id,center=true,end=0,g
     HelpTxt("Torus",["trx",trx,"d",d,"a",a,"fn",fn,"fn2",fn2,"r",r,"rot",rot,"grad",grad,"dia",dia,"id",id,"center",center,"end",end,"gradEnd",gradEnd,"trxEnd",trxEnd,"endRot",endRot,"name",name,"$d",$d,"lap",lap,"fs",fs,"fs2",fs2,"name",name],help);
     
         
-  rotate(end==-1? (asin(abs($r)/trx))*sign(grad):
+  rotate(min(end)==-1? (asin(abs($r)/trx))*sign(grad):
                   0){
      $idx=true;
      $info=is_undef(name)?is_undef($info)?false:$info:name;
@@ -6976,41 +6986,43 @@ module Torus(trx=+6,d=4,a=360,fn,fn2=0,r,rot=0,grad=0,dia,id,center=true,end=0,g
         else T(x=trx)R(0,0,rot)circle(d=abs(d),$fn=fn2);
       }
 
-      if(end&&a!=360&&!trxEnd){
+      if(max(end)&&a!=360&&!trxEnd){
           if($children){
-              rotate(a)translate([trx,0,center?0:d/2])scale([1,abs(end),1])R(0,endRot[1])RotEx(cut=sign(end*grad),grad=180*sign(end),fn=fn?max(fn/2,6):0,help=false)rotate(endRot[1])children();
-              rotate(+0)translate([trx,0,center?0:d/2])rotate(180)scale([1,abs(end),1])R(0,-endRot[0])RotEx(cut=sign(end*grad),grad=180*sign(end),fn=fn?max(6,fn/2):0,$fs=fs,help=false)rotate(endRot[0])children();  
+              if(end[1])rotate(a)translate([trx,0,center?0:d/2])scale([1,abs(end[1]),1])R(0,endRot[1])RotEx(cut=sign(end[1]*grad),grad=180*sign(end[0]),fn=fn?max(fn/2,6):0,help=false)rotate(endRot[1])children();
+              if(end[0])rotate(+0)translate([trx,0,center?0:d/2])rotate(180)scale([1,abs(end[0]),1])R(0,-endRot[0])RotEx(cut=sign(end[0]*grad),grad=180*sign(end[0]),fn=fn?max(6,fn/2):0,$fs=fs,help=false)rotate(endRot[0])children();  
           }
           else{
-          rotate(a-sign(grad)*minVal)translate([trx,0,center?0:d/2])scale([1,abs(end),1])R(90)Halb(sign(grad)>0?1:0)sphere(d=abs(d),$fn=fn2);
-          rotate(sign(grad)*minVal)translate([trx,0,center?0:d/2])scale([1,abs(end),1])R(90)Halb(sign(grad)>0?0:1)sphere(d=abs(d),$fn=fn2);
+          if(end[0])rotate(sign(grad)*minVal)translate([trx,0,center?0:d/2])scale([1,abs(end[0]),1])R(90)Halb(sign(grad)>0?0:1)sphere(d=abs(d),$fn=fn2);
+          if(end[1])rotate(a-sign(grad)*minVal)translate([trx,0,center?0:d/2])scale([1,abs(end[1]),1])R(90)Halb(sign(grad)>0?1:0)sphere(d=abs(d),$fn=fn2);
+          
           }
       }
       
       if(trxEnd)translate([0,0,center?0:d/2]){ // End Ringstück
           if($children){
           T(trx-trxEnd)rotate(gradEnd*sign(-trxEnd)){
-              rotate(end?-lap*sign(trxEnd):0)RotEx(grad=(gradEnd+(end?lap:0))*sign(trxEnd),cut=+0,fn=fn?fn/360*gradEnd:0,$fs=fs)T(trxEnd)rotate(rot)children();
-              if(end)translate([trxEnd,0,0])rotate(180)scale([1,abs(end),1])R(0,-endRot[0])RotEx(cut=sign(end*gradEnd),grad=180*sign(gradEnd*end),fn=fn?max(6,fn/2):0,$fs=fs,help=false)rotate(endRot[0])children();
+              rotate(end[0]?-lap*sign(trxEnd):0)RotEx(grad=(gradEnd+(end[0]?lap:0))*sign(trxEnd),cut=+0,fn=fn?fn/360*gradEnd:0,$fs=fs)T(trxEnd)rotate(rot)children();
+              if(end[0])translate([trxEnd,0,0])rotate(180)scale([1,abs(end[0]),1])R(0,-endRot[0])RotEx(cut=sign(end[1]*gradEnd),grad=180*sign(gradEnd*end[0]),fn=fn?max(6,fn/2):0,$fs=fs,help=false)rotate(endRot[0])children();
               }
          rotate(180+grad)T(-trx+trxEnd)rotate(180){
-              RotEx(grad=(gradEnd+(end?lap:0))*sign(trxEnd),cut=+0,fn=fn?fn/360*gradEnd:0,$fs=fs)T(trxEnd)rotate(rot)children();
-              if(end)rotate((gradEnd)*sign(trxEnd))translate([trxEnd,0,0])scale([1,abs(end),1])R(0,endRot[1])RotEx(cut=sign(end*gradEnd),grad=180*sign(gradEnd*end),fn=fn?max(6,fn/2):0,$fs=fs,help=false)rotate(endRot[1])children();
+              RotEx(grad=(gradEnd+(end[1]?lap:0))*sign(trxEnd),cut=+0,fn=fn?fn/360*gradEnd:0,$fs=fs)T(trxEnd)rotate(rot)children();
+              if(end[1])rotate((gradEnd)*sign(trxEnd))translate([trxEnd,0,0])scale([1,abs(end[1]),1])R(0,endRot[1])RotEx(cut=sign(end[1]*gradEnd),grad=180*sign(gradEnd*end[1]),fn=fn?max(6,fn/2):0,$fs=fs,help=false)rotate(endRot[1])children();
               } 
           }
           else{
               T(trx-trxEnd)rotate((gradEnd)*sign(-trxEnd)){
-              rotate(end?-lap*sign(trxEnd):0)RotEx(grad=(gradEnd+(end?lap:0))*sign(trxEnd),fn=fn/360*gradEnd,$fs=fs,cut=+0)T(trxEnd)rotate(rot)circle(d=d,$fn=fn2);
-              if(end)translate([trxEnd,0,0])rotate(180)scale([1,abs(end),1])RotEx(cut=sign(end*gradEnd),grad=180*sign(gradEnd*end),fn=fn/8,$fs=fs,help=false)rotate(rot)circle(d=d,$fn=fn2);
+              rotate(end[1]?-lap*sign(trxEnd):0)RotEx(grad=(gradEnd+(end[1]?lap:0))*sign(trxEnd),fn=fn/360*gradEnd,$fs=fs,cut=+0)T(trxEnd)rotate(rot)circle(d=d,$fn=fn2);
+              if(end[1])translate([trxEnd,0,0])rotate(180)scale([1,abs(end[1]),1])RotEx(cut=sign(end[1]*gradEnd),grad=180*sign(gradEnd*end[1]),fn=fn/8,$fs=fs,help=false)rotate(rot)circle(d=d,$fn=fn2);
               }
          rotate(180+grad)T(-trx+trxEnd)rotate(180){
-              RotEx(grad=(gradEnd+(end?lap:0))*sign(trxEnd),cut=+0,fn=fn/360*gradEnd,$fs=fs)T(trxEnd)rotate(rot)circle(d=d,$fn=fn2);
-              if(end)rotate((gradEnd)*sign(trxEnd))translate([trxEnd,0,0])scale([1,abs(end),1])RotEx(cut=sign(end*gradEnd),grad=180*sign(gradEnd*end),fn=fn/8,$fs=fs,help=false)rotate(rot)circle(d=d,$fn=fn2);
+              RotEx(grad=(gradEnd+(end[0]?lap:0))*sign(trxEnd),cut=+0,fn=fn/360*gradEnd,$fs=fs)T(trxEnd)rotate(rot)circle(d=d,$fn=fn2);
+              if(end[0])rotate((gradEnd)*sign(trxEnd))translate([trxEnd,0,0])scale([1,abs(end[0]),1])RotEx(cut=sign(end[0]*gradEnd),grad=180*sign(gradEnd*end[0]),fn=fn/8,$fs=fs,help=false)rotate(rot)circle(d=d,$fn=fn2);
               }  
           }    
       }
   }
 }
+
 
 
 /* Roof
@@ -7089,7 +7101,7 @@ Echo("Roof is experimental - use Dev Snapshot version and activate",color="warni
   if(floor&&(h[0]||is_undef(h[0])))Tz((center?-base/2:(h[0]?h[0]:0))+(s[0]<0?-h[0]:0))intersection(){
     scale([1,1,-s[0]])roof(method=opt[0]?"voronoi":"straight",$fn=fn,$fs=fs,convexity=convexity)offset(delta=ofs[0]){
     $fn=ifn;
-    $idx=(scale&&(h[1]||is_undef(h[1])))||base?1:0;
+    $idx=is_undef($idx)?(scale&&(h[1]||is_undef(h[1])))||base?1:0:$idx;
     children(); // experimental feature comment out if not activated in preferences
     }
     //if(h[0])cube([iSize,iSize,h[0]*2],true);//for intersection
@@ -7555,7 +7567,8 @@ Ring() creates a ring
 module Ring(h=5,dicke,d=10,r,id=6,ir,grad=360,rcenter,center=false,fn,fs=fs,name, use2D=0,help,cd=1,rand){
     
     dicke=is_undef(dicke)?rand:dicke;
-    id=is_undef(id)?d-dicke*2:id;
+    d=is_undef(r)?d:r*2;
+    id=is_undef(id)?d-dicke*2:is_undef(ir)?id:ir*2;
     r=is_undef(r)?d/2:r;
     ir=is_undef(ir)?id/2:ir;
     rcenter=is_undef(rcenter)?!abs(cd):rcenter;
@@ -7681,18 +7694,26 @@ lap=is_num(spiel)?-spiel:lap;
 }
 
 
-module Kugelmantel(d=20,rand=n(2),fn=fn,help)
+module Kugelmantel(d=20,rand=n(2),fn=fn,fa=fa,fs=fs,r,dicke,center=false,help)
 {
+dicke=is_num(dicke)?dicke:rand;
+r=is_num(r)?r:d/2;
     difference()
     {
-        sphere(d=d,$fn=fn);
-        sphere(d=d-2*rand,$fn=fn);
+        if(dicke>0)sphere(r=center?r+dicke/2:r,$fn=fn,$fa=fa,$fs=fs);
+        sphere(r=center?r-dicke/2:r-dicke,$fn=fn,$fa=fa,$fs=fs);
+        if(dicke<0)sphere(r=r,$fn=fn,$fa=fa,$fs=fs);
         
     }
     
 HelpTxt("Kugelmantel",["d",d,
-    "rand",rand, 
+    "dicke",dicke, 
     "fn",fn,
+    "fa",fa,
+    "fs",fs,
+    "r",r,
+    "center",center
+    
 ],help);
 }
 
@@ -11529,7 +11550,7 @@ T(70)color("blue") FlatMesh(amp=[0,0,0,0,0,0,0,1,0,0],freq=[4],delta=[0,0, 0,0, 
 
 
 module FlatMesh(size=[20,30],fz,base=5,res=1,randSize=0,amp=[1],freq=[2],delta=[0],seed=42,faceOpt,center=[0,0,1],fs=1,bricks=false,help){
-center=v3(center);
+center=is_bool(center)?center?[1,1,1]:[0,0,1]:v3(center);
 size=is_num(size)?[size,size]:size;
 amp=is_list(amp)?amp:[amp];
 freq=is_list(freq)?freq:[freq];
@@ -12553,6 +12574,7 @@ HelpTxt("Pin",["l",l,"d",d,"cut",cut,"cutDepth",cutDepth,"cutDeg",cutDeg,"mitte"
 \param fn,fs,fa  segment control
 */
 
+
 module Klammer(l=10,grad=250,d=4,rad2=5,offen,dicke,breite=2.5,deg2=[12.5,12.5],fn=fn,fs=fs,fa=fa,help){
 breite=dicke?dicke:breite;
 
@@ -12566,7 +12588,8 @@ breite=dicke?dicke:breite;
     rad2=is_list(rad2)?vMax(rad2,breite):[1,1]*max(breite,rad2);
     
 if(useVersion&&useVersion<24.27){
-  KlammerOLD(l=l,grad=grad,d=d,rad2=rad2,offen=offen,breite=breite,deg2=deg2,fn=fn)children();
+  if($children)KlammerOLD(l=l,grad=grad,d=d,rad2=rad2,offen=offen,breite=breite,deg2=deg2,fn=fn)children();
+  else KlammerOLD(l=l,grad=grad,d=d,rad2=rad2,offen=offen,breite=breite,deg2=deg2,fn=fn);
   Echo("Using old Klammer Version");
 }
 else {
@@ -12617,6 +12640,9 @@ HelpTxt("Klammer",[
   ,help);
 
 }
+
+
+
 module KlammerOLD(l=10,grad=250,d=4,rad2=5,offen,breite=2.5,deg2=[12.5,12.5],fn=fn,help){
     $x=breite;
     $d=breite;
@@ -12998,7 +13024,7 @@ if(kanal)intersection(){
 if(dummy&&$preview)color([0.6,0.6,0.2,0.5])translate([0,0,tasche-pcb[2]])linear_extrude(pcb[2],convexity=5)square([pcb[0],pcb[1]],true);
 
 //box
-if(!deckel||($preview&&deckel!=3)||deckel==2||deckel<0)color(alpha=deckel==1?0.5:1){
+if(!deckel||($preview&&deckel!=3)||deckel==2||deckel<0)color("silver",alpha=deckel==1?0.5:1){
     difference(){
      if(!$children)   minkowski(){
           translate([0,0,h/2])cube([pcb[0]-rS*2-(rC-rS)*2+wand*2+spiel*2,pcb[1]-rS*2-(rC-rS)*2+wand*2+spiel*2,h-rS*2],true);
